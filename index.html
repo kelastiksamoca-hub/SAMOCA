@@ -775,26 +775,21 @@ let timerInterval, sisaDetik=0;
 let hapusID = null;
 
 function adminPreviewSiswa(){
-  if(localStorage.getItem("role") !== "admin"){
-  return;
-}
-document.getElementById("adminPreviewLabel").style.display="block";
-document.getElementById("btnBackAdmin").style.display="block";
-document.querySelector(".top-right").style.display = "none";
 
-  // tandai sebagai preview admin
-  localStorage.setItem("login","true");
-  localStorage.setItem("role","siswa");
+  // ❌ JANGAN UBAH ROLE
+  // localStorage.setItem("role","siswa");  ← HAPUS BARIS INI
+
   localStorage.setItem("preview","admin");
+
+  document.getElementById("adminPreviewLabel").style.display="block";
+  document.getElementById("btnBackAdmin").style.display="block";
 
   // sembunyikan admin
   adminMode.style.display = "none";
 
   // tampilkan siswa
   siswaMode.style.display = "block";
-  
 
-  // ambil soal aktif (tanpa token)
   const soalAktif = cacheSoal.filter(r => r[5] == 1);
 
   if(soalAktif.length === 0){
@@ -806,8 +801,8 @@ document.querySelector(".top-right").style.display = "none";
     return;
   }
 
-  // render kartu siswa
   cardData.innerHTML = "";
+
   soalAktif.forEach(r=>{
     cardData.innerHTML+=`
       <div class="soal-card">
@@ -820,6 +815,7 @@ document.querySelector(".top-right").style.display = "none";
       </div>`;
   });
 }
+
 function kembaliKeAdmin(){
 
   // keluar dari preview
@@ -1260,3 +1256,4 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 </body>
 </html>
+
