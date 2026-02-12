@@ -573,7 +573,7 @@ table td, table th{
       >
       <span class="eye" onclick="togglePass()">👁️</span>
     </div>
-
+   
     <input 
       id="tokenInput" 
       placeholder="Token Ujian" 
@@ -709,6 +709,7 @@ table td, table th{
 </p>
 
   <div class="card">
+    <h3 id="namaTampil" style="margin-bottom:15px;"></h3>
     <h3>📚 Daftar Soal</h3>
     <button 
       onclick="refreshSoalSiswa()" 
@@ -918,53 +919,38 @@ async function login(){
   	document.getElementById("btnModeSiswa").style.display = "inline-block";
     loadAdmin();
 
-  }else{
-  const token = tokenInput.value.trim();
+ }else{
 
-  // 🔥 CEK CACHE TOKEN
-  if(localStorage.getItem("login")==="true" &&
-     localStorage.getItem("role")==="siswa" &&
-     localStorage.getItem("token")===token
-  ){
-    loginBox.style.display="none";
-    app.style.display="block";
-    siswaMode.style.display="block";
-    loadSiswa();
+  	const token = tokenInput.value.trim();
+
+  	if(!token){
+    alert("Masukkan token terlebih dahulu");
     return;
-  }
+  	}
 
-  // ⬇️ FETCH SEKALI
-  const res = await fetch(SCRIPT_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"LOGIN_SISWA",
-      token: token
-    })
-  }).then(r=>r.json());
+  	// 🔥 Simpan login
+  	localStorage.setItem("login","true");
+ 	localStorage.setItem("role","siswa");
+  	localStorage.setItem("token",token);
 
-  if(res.status!=="LOGIN_OK") return alert("Token tidak valid");
-    // 🔴 BERSIHKAN MODE PREVIEW ADMIN
- 	localStorage.removeItem("preview");
+  	// Bersihkan preview admin
+  	localStorage.removeItem("preview");
   	const label = document.getElementById("adminPreviewLabel");
- 	if(label) label.style.display = "none";
-    const backBtn = document.getElementById("btnBackAdmin");
-	if(backBtn) backBtn.style.display="none";
-    // ❌ SEMBUNYIKAN MODE SISWA UNTUK SISWA ASLI
-	document.getElementById("btnModeSiswa").style.display = "none";
+  	if(label) label.style.display = "none";
 
+  	const backBtn = document.getElementById("btnBackAdmin");
+  	if(backBtn) backBtn.style.display="none";
 
-  // 🔥 SIMPAN CACHE
-  localStorage.setItem("login","true");
-  localStorage.setItem("role","siswa");
-  localStorage.setItem("token",token);
-  localStorage.setItem("soal",JSON.stringify(res.soal));
+  	document.getElementById("btnModeSiswa").style.display = "none";
 
-  loginBox.style.display="none";
-  app.style.display="block";
-  siswaMode.style.display="block";
-  loadSiswa();
+  	// ✅ Langsung masuk (cepat)
+  	loginBox.style.display="none";
+  	app.style.display="block";
+  	siswaMode.style.display="block";
+
+  	loadSiswa();          // tampilkan cache dulu
+  	refreshSoalSiswa();   // ambil data terbaru di background
 }
-
 }
 
 function logout(){
@@ -1001,50 +987,54 @@ async function loadAdmin(){
 }
 
 function renderAdmin(){
-  tableData.innerHTML="";
-  totalSoal.innerText=cacheSoal.length;
+  let html = "";
+  totalSoal.innerText = cacheSoal.length;
 
   cacheSoal.forEach((r,i)=>{
-    const status = r[5] == 1 ? "AKTIF" : "NONAKTIF";
-    const warna  = r[5] == 1 ? "#4CAF50" : "#f44336";
-    const teksBtn= r[5] == 1 ? "Nonaktifkan" : "Aktifkan";
-
-   tableData.innerHTML+=`
-  <tr>
-    <td>${i+1}</td>
-    <td>${r[1]}</td>
-    <td>${r[2]}</td>
-    <td>${r[3]} menit</td>
-    <td>
-      <div class="aksi-box">
-
-        ${
-          r[5]==1
-          ? `
-            <button class="btn btn-disabled" disabled>🔓 Aktif</button>
-            <button class="btn btn-disable"
-              onclick="toggleSoal('${r[0]}',1)">🔒 Nonaktifkan</button>
-          `
-          : `
-            <button class="btn btn-enable"
-              onclick="toggleSoal('${r[0]}',0)">🔓 Aktifkan</button>
-            <button class="btn btn-disabled" disabled>🔒 Nonaktif</button>
-          `
-        }
-
-        <button class="btn btn-delete"
-  			onclick="confirmHapus('${r[0]}')">🗑️ Hapus</button>
-
-      </div>
-    </td>
-  </tr>`;
-
+    html += `
+    <tr>
+      <td>${i+1}</td>
+      <td>${r[1]}</td>
+      <td>${r[2]}</td>
+      <td>${r[3]} menit</td>
+      <td>
+        <div class="aksi-box">
+          ${
+            r[5]==1
+            ? `
+              <button class="btn btn-disabled" disabled>🔓 Aktif</button>
+              <button class="btn btn-disable"
+                onclick="toggleSoal('${r[0]}',1)">🔒 Nonaktifkan</button>
+            `
+            : `
+              <button class="btn btn-enable"
+                onclick="toggleSoal('${r[0]}',0)">🔓 Aktifkan</button>
+              <button class="btn btn-disabled" disabled>🔒 Nonaktif</button>
+            `
+          }
+          <button class="btn btn-delete"
+            onclick="confirmHapus('${r[0]}')">🗑️ Hapus</button>
+        </div>
+      </td>
+    </tr>`;
   });
+
+  tableData.innerHTML = html; // ✅ render hanya 1 kali
 }
 
+
 async function toggleSoal(id,status){
+
   const newStatus = status == 1 ? 0 : 1;
 
+  // 🔄 Update UI dulu (biar terasa instan)
+  const index = cacheSoal.findIndex(s => s[0] == id);
+  if(index !== -1){
+    cacheSoal[index][5] = newStatus;
+    renderAdmin();
+  }
+
+  // 📡 Kirim ke server di background
   await fetch(SCRIPT_URL,{
     method:"POST",
     body:JSON.stringify({
@@ -1054,9 +1044,8 @@ async function toggleSoal(id,status){
     })
   });
 
-  loadAdmin();
 }
-  
+
 function renderToken(){
   tokenTable.innerHTML="";
   cacheToken.forEach((r,i)=>{
@@ -1112,14 +1101,24 @@ async function hapusToken(id){
 }
 
 async function refreshSoalSiswa(){
+
+  const token = localStorage.getItem("token");
+  const nama  = localStorage.getItem("namaSiswa");
+
+  if(!token){
+    infoSoal.innerText = "⚠️ Token tidak ditemukan. Silakan login ulang.";
+    return;
+  }
+
   infoSoal.innerText = "⏳ Mengecek soal aktif...";
 
   try{
+
     const res = await fetch(SCRIPT_URL,{
       method:"POST",
       body:JSON.stringify({
         action:"LOGIN_SISWA",
-        token:tokenInput.value
+        token: token
       })
     }).then(r=>r.json());
 
@@ -1128,15 +1127,14 @@ async function refreshSoalSiswa(){
       return;
     }
 
-    // simpan ulang soal aktif
-    localStorage.setItem("soal",JSON.stringify(res.soal));
+    localStorage.setItem("soal", JSON.stringify(res.soal));
     cacheSoal = res.soal;
 
     if(cacheSoal.length === 0){
       infoSoal.innerText = "⏳ Soal belum dibuka oleh admin";
       cardData.innerHTML = "";
     }else{
-      infoSoal.innerText = "✅ Soal sudah tersedia";
+      infoSoal.innerText = "✅ Soal berhasil diperbarui";
       loadSiswa();
     }
 
@@ -1144,11 +1142,12 @@ async function refreshSoalSiswa(){
     infoSoal.innerText = "⚠️ Gagal mengambil soal";
   }
 }
-
 function loadSiswa(){
-  cacheSoal = JSON.parse(localStorage.getItem("soal")||"[]");
 
-  const soalAktif = cacheSoal.filter(r => r[5] == 1);
+  cacheSoal = JSON.parse(localStorage.getItem("soal") || "[]");
+
+  const soalAktif = cacheSoal.filter(r => r && r[5] == 1);
+
   cardData.innerHTML = "";
 
   if(soalAktif.length === 0){
@@ -1165,6 +1164,7 @@ function loadSiswa(){
   soalAktif.forEach(r=>{
     const div = document.createElement("div");
     div.className = "soal-card";
+
     div.innerHTML = `
       <span class="badge">${r[1]}</span>
       <h4>${r[2]}</h4>
@@ -1173,11 +1173,14 @@ function loadSiswa(){
         🎓 Mulai
       </button>
     `;
+
     frag.appendChild(div);
   });
 
   cardData.appendChild(frag);
 }
+
+
 
 
   
@@ -1245,15 +1248,19 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
 
 });
-// 🔐 AUTO LOGOUT SISWA SAAT RELOAD / TUTUP TAB
-  window.addEventListener("beforeunload", ()=>{
-    if(localStorage.getItem("role") === "siswa"){
-      localStorage.removeItem("role");
-      localStorage.removeItem("login");
-    }
-  });
+// 🔐 AUTO LOGOUT SAAT RELOAD / TUTUP TAB
+window.addEventListener("beforeunload", ()=>{
+  const role = localStorage.getItem("role");
+
+  if(role === "siswa" || role === "admin"){
+    localStorage.removeItem("role");
+    localStorage.removeItem("login");
+  }
+});
+
+  
+
 </script>
 
 </body>
 </html>
-
