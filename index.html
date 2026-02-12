@@ -1257,6 +1257,18 @@ window.addEventListener("beforeunload", ()=>{
     localStorage.removeItem("login");
   }
 });
+window.addEventListener("load",()=>{
+   if(localStorage.getItem("login")==="true" &&
+      localStorage.getItem("role")==="siswa"){
+
+        loginBox.style.display="none";
+        app.style.display="block";
+        siswaMode.style.display="block";
+
+        loadSiswa();                   // tampil instan dari cache
+        setTimeout(refreshSoalSiswa,500); // update data 0.5 detik kemudian
+   }
+});
 
   
 
